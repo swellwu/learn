@@ -11,7 +11,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -385,9 +385,9 @@ public class java8简明教程 {
                         new Person("David", "12"));
         //collect用于将流放入集合返回
         List<Person> filtered = persons
-                        .stream()
-                        .filter(p -> p.getFirstName().startsWith("P"))
-                        .collect(Collectors.toList());
+                .stream()
+                .filter(p -> p.getFirstName().startsWith("P"))
+                .collect(Collectors.toList());
         System.out.println(filtered); // [Peter, Pamela]
 
         //也可以放到map中
@@ -395,17 +395,169 @@ public class java8简明教程 {
                 .stream()
                 .collect(Collectors.groupingBy(p -> p.getFirstName()));
         personsByAge.forEach((age, p) -> System.out.format("age %s: %s\n", age,
-                        gson.toJson(p)));
+                gson.toJson(p)));
         //还有许多collect的高级操作详见P32
     }
 
     @Test
-    public void flatMap操作(){
+    public void flatMap操作() {
         //详见P32.
     }
 
     @Test
-    public void reduce操作(){
+    public void reduce操作() {
         //详见37
+    }
+
+    @Test
+    public void javaExecutor() {
+        //线程池的创建
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
+            String threadName = Thread.currentThread().getName();
+            System.out.println("Hello " + threadName);
+        });
+
+        //关闭线程池，首先温柔的关闭，如果超出时间还没关闭，则暴力关闭
+        try {
+            System.out.println("attempt to shutdown executor");
+            executor.shutdown();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            System.err.println("tasks interrupted");
+        } finally {
+            if (!executor.isTerminated()) {
+                System.err.println("cancel non-finished tasks");
+            }
+            executor.shutdownNow();
+            System.out.println("shutdown finished");
+        }
+
+    }
+
+    /**
+     * callable和runnable类似，但是返回一个值
+     */
+    @Test
+    public void callable和Future() throws ExecutionException, InterruptedException {
+        Callable<Integer> task = () -> {
+            try {
+                TimeUnit.SECONDS.sleep(2);
+                return 123;
+            } catch (InterruptedException e) {
+                throw new IllegalStateException("task interrupted", e);
+            }
+        };
+
+        //callable的结果通过Future对象获取，future.get()会阻塞知道callable返回结果
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        Future<Integer> future = executor.submit(task);
+        System.out.println("future done? " + future.isDone());
+        Integer result = null;
+        //future可以设置超时时间
+        try {
+            result = future.get(1, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+        }
+        System.out.println("future done? " + future.isDone());
+        System.out.print("result: " + result);
+    }
+
+    /**
+     * 批量提交操作
+     *
+     * @throws InterruptedException
+     */
+    @Test
+    public void invokeAll学习() throws InterruptedException {
+        ExecutorService executor = Executors.newWorkStealingPool();
+        List<Callable<String>> callables = Arrays.asList(
+                () -> "task1",
+                () -> "task2",
+                () -> "task3");
+        //执行所有的callable
+        executor.invokeAll(callables)
+                .stream()
+                .map(future -> {
+                    try {
+                        return future.get();
+                    } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                    }
+                })
+                .forEach(System.out::println);
+    }
+
+    Callable<String> callable(String result, long sleepSeconds) {
+        return () -> {
+            TimeUnit.SECONDS.sleep(sleepSeconds);
+            return result;
+        };
+    }
+
+    /**
+     * 获得第一个完成的callable
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    @Test
+    public void invokeAny学习() throws ExecutionException, InterruptedException {
+        ExecutorService executor = Executors.newWorkStealingPool();
+        List<Callable<String>> callables = Arrays.asList(
+                callable("task1", 2),
+                callable("task2", 1),
+                callable("task3", 3));
+        String result = executor.invokeAny(callables);
+        System.out.println(result);
+        // => task2
+    }
+
+    @Test
+    public void 调度线程池学习() throws InterruptedException {
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+        Runnable task = () -> System.out.println("Scheduling: " + System
+                .nanoTime());
+        //延迟调用
+        ScheduledFuture<?> future = executor.schedule(task, 3, TimeUnit.
+                SECONDS);
+        TimeUnit.MILLISECONDS.sleep(2337);
+        //获取剩余的延时,如果为正表示还未执行，为负表示已经执行了。
+        long remainingDelay = future.getDelay(TimeUnit.MILLISECONDS);
+        System.out.printf("Remaining Delay: %sms", remainingDelay);
+
+    }
+
+    @Test
+    public void 线程池以固定间隔调用() throws InterruptedException {
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+        Runnable task = () -> {
+            System.out.println("Scheduling: " + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()));
+            try {
+                TimeUnit.SECONDS.sleep(2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        };
+        int initialDelay = 0;
+        int period = 1;
+        //每隔period间隔调用一次任务task，如果执行任务的时间比period长，那么会延时到上一次执行完成
+        executor.scheduleAtFixedRate(task, initialDelay, period, TimeUnit.SECONDS);
+        TimeUnit.SECONDS.sleep(10);
+        executor.shutdown();
+
+        ScheduledExecutorService executor2 = Executors.newScheduledThreadPool(1);
+        Runnable task2 = () -> {
+            System.out.println("Scheduling: " + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()));
+            try {
+                TimeUnit.SECONDS.sleep(2);
+            }
+            catch (InterruptedException e) {
+                System.err.println("task interrupted");
+            }
+        };
+        //已固定间隔调用任务，这个固定间隔是指上一次完成到下一次开始的时间
+        executor2.scheduleWithFixedDelay(task2, 0, 1, TimeUnit.SECONDS);
+        TimeUnit.SECONDS.sleep(10);
     }
 }
