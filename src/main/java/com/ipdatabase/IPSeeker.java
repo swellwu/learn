@@ -119,38 +119,38 @@ public class IPSeeker {
         }
     }
 
-    /**
-     * 给定一个地点的不完全名字，得到一系列包含s子串的IP范围记录
-     * @param s 地点子串
-     * @return 包含IPEntry类型的List
-     */
-    public List<IPEntry> getIPEntriesDebug(String s) {
-        List<IPEntry> ret = new ArrayList<IPEntry>();
-        long endOffset = ipEnd + 4;
-        for(long offset = ipBegin + 4; offset <= endOffset; offset += IP_RECORD_LENGTH) {
-            // 读取结束IP偏移
-            long temp = readLong3(offset);
-            // 如果temp不等于-1，读取IP的地点信息
-            if(temp != -1) {
-                IPLocation loc = getIPLocation(temp);
-                // 判断是否这个地点里面包含了s子串，如果包含了，添加这个记录到List中，如果没有，继续
-                if(loc.country.indexOf(s) != -1 || loc.area.indexOf(s) != -1) {
-                    IPEntry entry = new IPEntry();
-                    entry.country = loc.country;
-                    entry.area = loc.area;
-                    // 得到起始IP
-                    readIP(offset - 4, b4);
-                    entry.beginIp = IPUtil.getIpStringFromBytes(b4);
-                    // 得到结束IP
-                    readIP(temp, b4);
-                    entry.endIp = IPUtil.getIpStringFromBytes(b4);
-                    // 添加该记录
-                    ret.add(entry);
-                }
-            }
-        }
-        return ret;
-    }
+//    /**
+//     * 给定一个地点的不完全名字，得到一系列包含s子串的IP范围记录
+//     * @param s 地点子串
+//     * @return 包含IPEntry类型的List
+//     */
+//    public List<IPEntry> getIPEntriesDebug(String s) {
+//        List<IPEntry> ret = new ArrayList<IPEntry>();
+//        long endOffset = ipEnd + 4;
+//        for(long offset = ipBegin + 4; offset <= endOffset; offset += IP_RECORD_LENGTH) {
+//            // 读取结束IP偏移
+//            long temp = readLong3(offset);
+//            // 如果temp不等于-1，读取IP的地点信息
+//            if(temp != -1) {
+//                IPLocation loc = getIPLocation(temp);
+//                // 判断是否这个地点里面包含了s子串，如果包含了，添加这个记录到List中，如果没有，继续
+//                if(loc.country.indexOf(s) != -1 || loc.area.indexOf(s) != -1) {
+//                    IPEntry entry = new IPEntry();
+//                    entry.country = loc.country;
+//                    entry.area = loc.area;
+//                    // 得到起始IP
+//                    readIP(offset - 4, b4);
+//                    entry.beginIp = IPUtil.getIpStringFromBytes(b4);
+//                    // 得到结束IP
+//                    readIP(temp, b4);
+//                    entry.endIp = IPUtil.getIpStringFromBytes(b4);
+//                    // 添加该记录
+//                    ret.add(entry);
+//                }
+//            }
+//        }
+//        return ret;
+//    }
 
     /**
      * 给定一个地点的不完全名字，得到一系列包含s子串的IP范围记录
