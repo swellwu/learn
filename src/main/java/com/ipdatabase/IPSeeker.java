@@ -8,9 +8,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 
 /**
@@ -102,7 +100,7 @@ public class IPSeeker {
      */
     public void init(String ipDataFile) throws IOException {
         IP_FILE = ipDataFile;
-        ipCache = new HashMap<String, IPLocation>();
+        ipCache = new LinkedHashMap<>();
         loc = new IPLocation();
         buf = new byte[100];
         b4 = new byte[4];
@@ -117,6 +115,25 @@ public class IPSeeker {
                 ipFile = null;
             }
         }
+    }
+
+    public List<String> getAllIp() throws IOException {
+        List<String> ipList=new LinkedList<>();
+        for(long i=ipBegin;i<ipEnd;i+=7){
+            byte[] ip=new byte[4];
+            readIP(i,ip);
+            ipList.add(IPUtil.getIpStringFromBytes(ip));
+        }
+        return ipList;
+    }
+
+    public List<String> getAllAddress() throws IOException {
+        List<String> addressList=new LinkedList<>();
+        List<String> ipList=getAllIp();
+        for(String ip:ipList){
+            addressList.add(getAddress(ip));
+        }
+        return addressList;
     }
 
 //    /**
